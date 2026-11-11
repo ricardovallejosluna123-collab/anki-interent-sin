@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Anki Viaje">
+<meta name="theme-color" content="#f4f1ea">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<title>Anki Viaje</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64; --line: #dedbd1;
+    --accent: #1f4e79; --again: #c23b2e; --hard: #8a6d1f; --good: #2e7d32; --easy: #1f5fa8;
+    --new: #1f5fa8; --lrn: #c23b2e; --rev: #2e7d32;
+    --top: env(safe-area-inset-top, 0px); --bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1b1b1d; --panel: #262628; --ink: #f1efe8; --muted: #a3a19a; --line: #3a3a3d;
+      --accent: #8fb8e8; --new: #78a9e6; --lrn: #ef8a7f; --rev: #7fc883; }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  button { font: inherit; border: 0; cursor: pointer; }
+  .screen { display: none; flex: 1; flex-direction: column; min-height: 0; }
+  .screen.on { display: flex; }
+
+  /* Inicio */
+  #home { overflow-y: auto; padding: calc(var(--top) + 20px) 18px calc(var(--bottom) + 24px); }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .brand img { width: 40px; height: 40px; border-radius: 10px; }
+  .brand h1 { font-size: 24px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+  .card-box { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+  .deck-name { font-size: 19px; font-weight: 600; margin: 0 0 2px; word-break: break-word; }
+  .sub { color: var(--muted); font-size: 14px; }
+  .counts { display: flex; gap: 10px; margin: 14px 0 4px; }
+  .count { flex: 1; text-align: center; padding: 10px 4px; border-radius: 12px; background: var(--bg); }
+  .count b { display: block; font-size: 24px; line-height: 1.2; }
+  .count span { font-size: 12px; color: var(--muted); }
+  .c-new b { color: var(--new); } .c-lrn b { color: var(--lrn); } .c-rev b { color: var(--rev); }
+  .btn { display: block; width: 100%; padding: 15px; border-radius: 14px; font-weight: 600; text-align: center; margin-top: 10px; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  @media (prefers-color-scheme: dark) { .btn-primary { color: #10233a; } }
+  .btn-secondary { background: var(--panel); color: var(--accent); border: 1px solid var(--line); }
+  .btn-quiet { background: transparent; color: var(--muted); font-weight: 500; }
+  .btn:disabled { opacity: .45; }
+  .status { font-size: 14px; color: var(--muted); margin: 6px 2px 0; }
+  .status.ok::before { content: "● "; color: var(--good); }
+  .status.warn::before { content: "● "; color: var(--hard); }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; color: var(--accent); font-weight: 600; padding: 6px 0; }
+  ol { padding-left: 22px; margin: 6px 0; } li { margin: 6px 0; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0; }
+  .switch { position: relative; width: 50px; height: 30px; flex: none; }
+  .switch input { opacity: 0; width: 100%; height: 100%; position: absolute; margin: 0; }
+  .switch span { position: absolute; inset: 0; border-radius: 15px; background: var(--line); transition: .2s; pointer-events: none; }
+  .switch span::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: .2s; }
+  .switch input:checked + span { background: var(--good); }
+  .switch input:checked + span::after { transform: translateX(20px); }
+  .pill { display: inline-block; font-size: 13px; padding: 2px 9px; border-radius: 99px; background: var(--bg); color: var(--muted); }
+
+  /* Estudio */
+  #study { background: var(--panel); }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: calc(var(--top) + 6px) 8px 6px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .topbar button { background: none; color: var(--accent); padding: 8px 10px; font-size: 16px; }
+  .topbar button:disabled { color: var(--muted); opacity: .5; }
+  .tcounts { font-weight: 700; font-size: 17px; display: flex; gap: 12px; }
+  .tcounts .cur { text-decoration: underline; text-underline-offset: 4px; }
+  #frame { flex: 1; width: 100%; border: 0; min-height: 0; background: #fff; display: block; }
+  .answerbar { padding: 8px 8px calc(var(--bottom) + 8px); border-top: 1px solid var(--line); background: var(--panel); }
+  #show { width: 100%; padding: 16px; border-radius: 14px; background: var(--accent); color: #fff; font-weight: 600; font-size: 18px; }
+  @media (prefers-color-scheme: dark) { #show { color: #10233a; } }
+  .ease { display: none; gap: 6px; }
+  .ease.on { display: flex; }
+  .ease button { flex: 1; padding: 8px 2px 10px; border-radius: 12px; color: #fff; font-weight: 600; font-size: 15px; line-height: 1.25; }
+  .ease small { display: block; font-weight: 500; font-size: 12px; opacity: .9; }
+  .e1 { background: var(--again); } .e2 { background: var(--hard); } .e3 { background: var(--good); } .e4 { background: var(--easy); }
+  #finished { display: none; flex: 1; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 24px; }
+  #finished.on { display: flex; }
+  #finished .big { font-size: 44px; }
+
+  /* Diálogo y aviso */
+  #modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; padding: 24px; z-index: 10; }
+  #modal.on { display: flex; }
+  #modal .card-box { max-width: 420px; width: 100%; margin: 0; }
+  #modal p { margin: 0 0 6px; white-space: pre-line; }
+  #toast { position: fixed; left: 50%; bottom: calc(var(--bottom) + 96px); transform: translateX(-50%); background: #1d1d1b; color: #fff; padding: 10px 16px; border-radius: 12px; font-size: 15px; opacity: 0; transition: opacity .25s; pointer-events: none; max-width: 90%; text-align: center; z-index: 11; }
+  #toast.on { opacity: .94; }
+  input[type=file] { display: none; }
+</style>
+</head>
+<body>
+
+<section id="home" class="screen on">
+  <div class="brand"><img src="./apple-touch-icon.png" alt=""><h1>Anki Viaje</h1></div>
+
+  <div id="deckBox" class="card-box" hidden>
+    <p class="deck-name" id="deckName"></p>
+    <div class="sub" id="deckMeta"></div>
+    <div class="counts">
+      <div class="count c-new"><b id="hNew">0</b><span>Nuevas</span></div>
+      <div class="count c-lrn"><b id="hLrn">0</b><span>Aprendiendo</span></div>
+      <div class="count c-rev"><b id="hRev">0</b><span>Repasar</span></div>
+    </div>
+    <div class="sub" id="answeredInfo"></div>
+    <button class="btn btn-primary" id="btnStudy">Estudiar</button>
+    <button class="btn btn-secondary" id="btnSend">Enviar repasos al PC</button>
+    <button class="btn btn-quiet" id="btnCopy">Plan B: copiar repasos como texto</button>
+  </div>
+
+  <div id="emptyBox" class="card-box">
+    <p class="deck-name">Aún no hay ningún mazo cargado</p>
+    <div class="sub">Exporta tus tarjetas desde Anki en el PC (Herramientas → Anki Viaje: exportar para iPhone) y cárgalas aquí.</div>
+  </div>
+
+  <button class="btn btn-secondary" id="btnLoad">Cargar mazo</button>
+  <input type="file" id="file" accept=".json,application/json,text/plain">
+  <p class="status" id="offline">Comprobando modo sin internet…</p>
+
+  <div class="card-box" style="margin-top:14px">
+    <div class="row"><span>Modo noche en las tarjetas</span>
+      <label class="switch"><input type="checkbox" id="night"><span></span></label></div>
+    <details>
+      <summary>¿Cómo se usa?</summary>
+      <ol>
+        <li><b>PC:</b> en Anki, Herramientas → <i>Anki Viaje: exportar para iPhone</i>. Envía el archivo a ti mismo por WhatsApp.</li>
+        <li><b>iPhone:</b> abre el archivo en WhatsApp → Compartir → <i>Guardar en Archivos</i>.</li>
+        <li>Aquí: <i>Cargar mazo</i> y elige ese archivo. Ya puedes ponerte en modo avión.</li>
+        <li>Repasa. Cada respuesta se guarda al instante; puedes cerrar la app cuando quieras.</li>
+        <li>Al terminar: <i>Enviar repasos al PC</i> → WhatsApp → a ti mismo.</li>
+        <li><b>PC:</b> Herramientas → <i>Anki Viaje: importar repasos del iPhone</i> → elige el archivo <i>repasos_…</i> → Sincronizar.</li>
+      </ol>
+      <p class="sub">No repases en el PC las tarjetas que tienes aquí hasta importarlas. Los intervalos de los botones son los que calculó Anki al exportar; el cálculo definitivo lo hace Anki al importar.</p>
+    </details>
+  </div>
+</section>
+
+<section id="study" class="screen">
+  <div class="topbar">
+    <button id="btnBack">‹ Inicio</button>
+    <div class="tcounts"><span id="sNew" style="color:var(--new)">0</span><span id="sLrn" style="color:var(--lrn)">0</span><span id="sRev" style="color:var(--rev)">0</span></div>
+    <button id="btnUndo">Deshacer</button>
+  </div>
+  <iframe id="frame" title="Tarjeta" sandbox="allow-scripts"></iframe>
+  <div id="finished">
+    <div class="big">🎉</div>
+    <h2 style="margin:8px 0">¡Terminaste las tarjetas del viaje!</h2>
+    <p class="sub" id="finishedInfo"></p>
+    <button class="btn btn-primary" id="btnSend2" style="max-width:340px">Enviar repasos al PC</button>
+    <button class="btn btn-quiet" id="btnBack2" style="max-width:340px">Volver al inicio</button>
+  </div>
+  <div class="answerbar" id="answerbar">
+    <button id="show">Mostrar respuesta</button>
+    <div class="ease" id="ease">
+      <button class="e1" data-e="1"><small id="l1"></small>Otra vez</button>
+      <button class="e2" data-e="2"><small id="l2"></small>Difícil</button>
+      <button class="e3" data-e="3"><small id="l3"></small>Bien</button>
+      <button class="e4" data-e="4"><small id="l4"></small>Fácil</button>
+    </div>
+  </div>
+</section>
+
+<div id="modal"><div class="card-box">
+  <p id="mText"></p>
+  <button class="btn btn-primary" id="mOk">Aceptar</button>
+  <button class="btn btn-quiet" id="mCancel">Cancelar</button>
+</div></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const FORMAT_DECK = "anki-viaje-mazo", FORMAT_RESULTS = "anki-viaje-repasos";
+
+/* ---------------- almacenamiento (IndexedDB) ---------------- */
+const DB = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open("anki-viaje", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("kv");
+      r.onsuccess = () => { this.db = r.result; res(); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  get(k) {
+    return new Promise((res, rej) => {
+      const r = this.db.transaction("kv").objectStore("kv").get(k);
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+  },
+  set(k, v) {
+    return new Promise((res, rej) => {
+      const tx = this.db.transaction("kv", "readwrite");
+      tx.objectStore("kv").put(v, k);
+      tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+    });
+  },
+};
+
+let bundle = null;   // mazo exportado (grande, no cambia)
+let S = null;        // sesión (pequeña, se guarda tras cada respuesta)
+let byId = new Map();
+let current = null;  // {cid, src, shownAt, answerShown}
+const mediaCache = new Map();
+
+/* ---------------- utilidades ---------------- */
+function toast(msg, ms = 2200) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("on"), ms);
+}
+function ask(text, okText = "Aceptar", cancelText = "Cancelar") {
+  return new Promise((res) => {
+    $("mText").textContent = text; $("mOk").textContent = okText;
+    $("mCancel").textContent = cancelText; $("mCancel").hidden = !cancelText;
+    $("modal").classList.add("on");
+    const done = (v) => { $("modal").classList.remove("on"); $("mOk").onclick = $("mCancel").onclick = null; res(v); };
+    $("mOk").onclick = () => done(true); $("mCancel").onclick = () => done(false);
+  });
+}
+const tell = (text) => ask(text, "Entendido", "");
+const clean = (s) => (s || "").replace(/[⁨⁩]/g, "");
+function fmtSecs(s) {
+  if (s == null) return "✓";
+  if (s < 60) return "<1 min";
+  const m = s / 60;
+  if (m < 60) return `${Math.round(m)} min`;
+  const h = m / 60;
+  return `${Math.round(h * 10) / 10} h`;
+}
+function saveSession() {
+  return DB.set("session", S).catch((e) => toast("⚠️ No se pudo guardar: " + e));
+}
+
+/* ---------------- sesión ---------------- */
+function buildSession(b) {
+  const lrn = [], rev = [], neu = [];
+  for (const c of b.cards) {
+    if (c.kind === "learn" || c.kind === "relearn") lrn.push(c.cid);
+    else if (c.kind === "review") rev.push(c.cid);
+    else neu.push(c.cid);
+  }
+  // mezclar nuevas entre los repasos, como Anki
+  const main = [];
+  const every = neu.length ? Math.max(1, Math.floor(rev.length / (neu.length + 1))) : Infinity;
+  let ni = 0;
+  rev.forEach((cid, i) => {
+    main.push(cid);
+    if ((i + 1) % every === 0 && ni < neu.length) main.push(neu[ni++]);
+  });
+  while (ni < neu.length) main.push(neu[ni++]);
+  const cs = {};
+  for (const c of b.cards) cs[c.cid] = { seen: false, phase: null, step: c.step || 0 };
+  return {
+    exportId: b.export_id, deck: b.deck, created: b.created,
+    answers: [], sent: 0, mainQ: main,
+    learnQ: lrn.map((cid) => ({ cid, due: 0 })),
+    cs, undo: [], forceNext: null,
+  };
+}
+
+function counts() {
+  let n = 0, r = 0;
+  for (const cid of S.mainQ) (byId.get(cid).kind === "new" ? n++ : r++);
+  return { n, l: S.learnQ.length, r };
+}
+
+function pickNext() {
+  if (S.forceNext != null) {
+    const cid = S.forceNext;
+    if (S.mainQ[0] === cid) return { cid, src: "main" };
+    const i = S.learnQ.findIndex((e) => e.cid === cid);
+    if (i >= 0) return { cid, src: "learn" };
+    S.forceNext = null;
+  }
+  const now = Date.now();
+  let best = -1;
+  S.learnQ.forEach((e, i) => { if (e.due <= now && (best < 0 || e.due < S.learnQ[best].due)) best = i; });
+  if (best >= 0) return { cid: S.learnQ[best].cid, src: "learn" };
+  if (S.mainQ.length) return { cid: S.mainQ[0], src: "main" };
+  if (S.learnQ.length) {   // adelantar aprendizaje si no queda nada más
+    best = 0; S.learnQ.forEach((e, i) => { if (e.due < S.learnQ[best].due) best = i; });
+    return { cid: S.learnQ[best].cid, src: "learn" };
+  }
+  return null;
+}
+
+// pasos de (re)aprendizaje en minutos -> [segundos o null, nuevo paso]
+function simulate(phase, step, ease, conf) {
+  const steps = (conf && conf[phase]) || [];
+  if (!steps.length) return [null, 0];
+  let mins;
+  if (ease === 1) { step = 0; mins = steps[0]; }
+  else if (ease === 2) {
+    mins = step === 0 ? (steps.length > 1 ? (steps[0] + steps[1]) / 2 : steps[0] * 1.5) : steps[step];
+  } else if (ease === 3) {
+    if (step + 1 < steps.length) { step += 1; mins = steps[step]; } else return [null, step];
+  } else return [null, step];
+  const secs = Math.round(mins * 60);
+  return [secs >= 86400 ? null : secs, step];
+}
+
+function outcome(card, st, ease) {
+  const conf = bundle.confs[card.conf];
+  if (!st.seen) {
+    const phase = (card.kind === "new" || card.kind === "learn") ? "learn" : "relearn";
+    let step = card.step || 0;
+    if (ease === 1) step = 0; else if (ease === 3) step = step + 1;
+    if (card.kind === "review" && ease === 1) step = 0;
+    return { delay: card.delays[ease - 1], phase, step };
+  }
+  const [delay, step] = simulate(st.phase, st.step, ease, conf);
+  return { delay, phase: st.phase, step };
+}
+
+/* ---------------- renderizado de la tarjeta ---------------- */
+function mediaUri(key) {
+  if (!mediaCache.has(key)) {
+    const m = bundle.media[key];
+    mediaCache.set(key, m ? `data:${m.mime};base64,${m.b64}` : "");
+  }
+  return mediaCache.get(key);
+}
+const withMedia = (html) => (html || "").replace(/__AVM\d+__/g, (k) => mediaUri(k));
+
+function renderCard(card, side) {
+  const night = $("night").checked;
+  const css = withMedia(bundle.styles[card.nt] || "");
+  const body = withMedia(side === "q" ? card.q : card.a);
+  const base = `html,body{margin:0;padding:0}
+    body{padding:18px 16px 48px;font-family:-apple-system,"Segoe UI",Arial,sans-serif;font-size:20px;
+      -webkit-text-size-adjust:100%;word-wrap:break-word;overflow-wrap:anywhere;
+      background:${night ? "#2c2c2e" : "#fff"};color:${night ? "#eee" : "#000"}}
+    img{max-width:100%;height:auto} table{max-width:100%} audio{max-width:100%;margin:6px 0}
+    hr#answer{margin:18px 0}`;
+  const scroll = side === "a"
+    ? `<script>window.addEventListener("load",function(){var a=document.getElementById("answer");if(a){a.scrollIntoView();window.scrollBy(0,-12);}});<\/script>` : "";
+  const cls = `card card${card.ord + 1}${night ? " nightMode night_mode" : ""}`;
+  $("frame").srcdoc = `<!DOCTYPE html><html class="${night ? "night-mode" : ""}"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1"><style>${base}</style><style>${css}</style></head>
+    <body class="${cls}"><div id="qa">${body}</div>${scroll}</body></html>`;
+}
+
+function updateTopCounts() {
+  const c = counts();
+  $("sNew").textContent = c.n; $("sLrn").textContent = c.l; $("sRev").textContent = c.r;
+  ["sNew", "sLrn", "sRev"].forEach((id) => $(id).classList.remove("cur"));
+  if (current) {
+    const k = current.src === "learn" ? "sLrn" : (byId.get(current.cid).kind === "new" ? "sNew" : "sRev");
+    $(k).classList.add("cur");
+  }
+  const sentLocked = S.answers.length <= S.sent;
+  $("btnUndo").disabled = !S.undo.length || sentLocked;
+}
+
+function showNext() {
+  const nx = pickNext();
+  if (!nx) {
+    current = null;
+    $("frame").style.display = "none"; $("answerbar").style.display = "none";
+    $("finished").classList.add("on");
+    const pend = S.answers.length - S.sent;
+    $("finishedInfo").textContent = pend > 0
+      ? `Tienes ${pend} respuestas sin enviar al PC.`
+      : "Todo enviado. Recuerda importarlo en Anki del PC.";
+    updateTopCounts();
+    return;
+  }
+  $("finished").classList.remove("on");
+  $("frame").style.display = ""; $("answerbar").style.display = "";
+  current = { ...nx, shownAt: Date.now(), answerShown: false };
+  renderCard(byId.get(nx.cid), "q");
+  $("show").style.display = ""; $("ease").classList.remove("on");
+  updateTopCounts();
+}
+
+function showAnswer() {
+  if (!current || current.answerShown) return;
+  current.answerShown = true;
+  const card = byId.get(current.cid), st = S.cs[current.cid];
+  renderCard(card, "a");
+  for (let e = 1; e <= 4; e++) {
+    const label = !st.seen ? clean(card.labels[e - 1]) || fmtSecs(card.delays[e - 1]) : fmtSecs(outcome(card, st, e).delay);
+    $("l" + e).textContent = label;
+  }
+  $("show").style.display = "none"; $("ease").classList.add("on");
+}
+
+let answering = false;
+async function answer(ease) {
+  if (!current || !current.answerShown || answering) return;
+  answering = true;
+  try {
+    const now = Date.now();
+    const { cid, src } = current;
+    const card = byId.get(cid), st = S.cs[cid];
+    const rec = { cid, src, prev: { ...st } };
+    if (src === "main") { S.mainQ.shift(); }
+    else {
+      const i = S.learnQ.findIndex((e) => e.cid === cid);
+      rec.entry = S.learnQ[i]; S.learnQ.splice(i, 1);
+    }
+    const o = outcome(card, st, ease);
+    S.cs[cid] = { seen: true, phase: o.phase, step: o.step };
+    if (o.delay != null) { rec.inserted = now + o.delay * 1000; S.learnQ.push({ cid, due: rec.inserted }); }
+    S.answers.push({ cid, ease, ms: Math.min(now - current.shownAt, 600000), at: now });
+    S.undo.push(rec); if (S.undo.length > 60) S.undo.shift();
+    S.forceNext = null;
+    await saveSession();
+    showNext();
+  } finally { answering = false; }
+}
+
+async function undo() {
+  if (!S.undo.length || S.answers.length <= S.sent) return;
+  const rec = S.undo.pop();
+  S.answers.pop();
+  S.cs[rec.cid] = rec.prev;
+  if (rec.inserted != null) {
+    const i = S.learnQ.findIndex((e) => e.cid === rec.cid && e.due === rec.inserted);
+    if (i >= 0) S.learnQ.splice(i, 1);
+  }
+  if (rec.src === "main") S.mainQ.unshift(rec.cid); else S.learnQ.push(rec.entry);
+  S.forceNext = rec.cid;
+  await saveSession();
+  toast("Respuesta deshecha");
+  showNext();
+}
+
+/* ---------------- inicio ---------------- */
+function refreshHome() {
+  const has = !!(bundle && S);
+  $("deckBox").hidden = !has; $("emptyBox").hidden = has;
+  $("btnLoad").textContent = has ? "Cargar otro mazo" : "Cargar mazo";
+  $("btnLoad").className = "btn " + (has ? "btn-quiet" : "btn-primary");
+  if (!has) return;
+  const c = counts();
+  $("deckName").textContent = S.deck.replace(/::/g, " › ");
+  const d = new Date(S.created);
+  $("deckMeta").textContent = `Exportado el ${d.toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" })} · ${bundle.cards.length} tarjetas`;
+  $("hNew").textContent = c.n; $("hLrn").textContent = c.l; $("hRev").textContent = c.r;
+  const pend = S.answers.length - S.sent;
+  $("answeredInfo").innerHTML = `Respondidas: <b>${S.answers.length}</b>` +
+    (pend > 0 ? ` · <span class="pill">${pend} sin enviar al PC</span>` : (S.answers.length ? " · todo enviado ✓" : ""));
+  const left = c.n + c.l + c.r;
+  $("btnStudy").textContent = left ? "Estudiar" : "Mazo terminado";
+  $("btnStudy").disabled = !left;
+  $("btnSend").disabled = !S.answers.length;
+  $("btnCopy").hidden = !S.answers.length;
+  $("btnSend").textContent = pend > 0 ? `Enviar repasos al PC (${pend} nuevos)`
+    : (S.answers.length ? "Volver a enviar repasos al PC" : "Enviar repasos al PC");
+}
+
+function go(screen) {
+  document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("on", s.id === screen));
+  if (screen === "home") refreshHome();
+}
+
+async function loadFile(file) {
+  if (!file) return;
+  toast("Leyendo archivo…", 6000);
+  let data;
+  try { data = JSON.parse(await file.text()); }
+  catch (e) { await tell("No pude leer ese archivo. Asegúrate de elegir el archivo «mazo_…json» que exportaste desde Anki."); return; }
+  if (data.format === FORMAT_RESULTS) { await tell("Ese es un archivo de REPASOS (para el PC). Aquí debes cargar el archivo «mazo_…» exportado desde Anki."); return; }
+  if (data.format !== FORMAT_DECK || !Array.isArray(data.cards)) { await tell("Ese archivo no es un mazo de Anki Viaje."); return; }
+  if (S && data.export_id === S.exportId) { await tell("Ese mazo ya está cargado. Tu progreso sigue aquí."); return; }
+  if (S && S.answers.length > S.sent) {
+    const ok = await ask(`Tienes ${S.answers.length - S.sent} respuestas del mazo actual SIN ENVIAR al PC. Si cargas otro mazo se perderán.\n\n¿Enviarlas primero?`, "Enviar primero", "Cargar igualmente");
+    if (ok) { await sendResults(); return; }
+  }
+  const newS = buildSession(data);
+  await DB.set("bundle", data);
+  await DB.set("session", newS);
+  bundle = data; S = newS; byId = new Map(data.cards.map((c) => [c.cid, c])); mediaCache.clear();
+  toast(`Mazo cargado: ${data.cards.length} tarjetas`);
+  refreshHome();
+}
+
+function resultsPayload() {
+  return { format: FORMAT_RESULTS, version: 1, export_id: S.exportId, deck: S.deck, created: Date.now(), answers: S.answers };
+}
+
+function afterSend() {
+  if ($("home").classList.contains("on")) refreshHome(); else updateTopCounts();
+  if ($("finished").classList.contains("on")) showNext();
+}
+
+async function copyResults() {
+  if (!S || !S.answers.length) return;
+  const total = S.answers.length;
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(resultsPayload()));
+    S.sent = total; await saveSession();
+    await tell("Repasos copiados.\n\n1) Pégalos en WhatsApp, en el chat contigo mismo, y envíalos.\n2) En el PC copia ese mensaje y en Anki usa Herramientas → «Anki Viaje: pegar repasos copiados como texto».");
+  } catch (e) {
+    await tell("No se pudo copiar: " + (e && e.message ? e.message : e));
+  }
+  afterSend();
+}
+
+async function sendResults() {
+  if (!S || !S.answers.length) return;
+  const payload = resultsPayload();
+  const d = new Date();
+  const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}_${String(d.getHours()).padStart(2, "0")}${String(d.getMinutes()).padStart(2, "0")}`;
+  const safe = (S.deck.split("::").pop() || "mazo").replace(/[^\w-]+/g, "_");
+  const name = `repasos_${safe}_${stamp}.json`;
+  const file = new File([JSON.stringify(payload)], name, { type: "application/json" });
+  const total = S.answers.length;
+  let problem = null;
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file] });
+      S.sent = total; await saveSession();
+      toast("Listo. Ahora impórtalo en Anki del PC.", 3500);
+    } else problem = "Este navegador no permite compartir archivos.";
+  } catch (e) {
+    if (e && e.name === "AbortError") toast("Envío cancelado");
+    else problem = "No se pudo compartir el archivo (" + (e && e.message ? e.message : e) + ").";
+  }
+  if (problem) {
+    if (await ask(problem + "\n\n¿Copiar los repasos como texto para pegarlos en WhatsApp?", "Copiar como texto", "Cancelar")) {
+      await copyResults(); return;
+    }
+  }
+  afterSend();
+}
+
+/* ---------------- eventos ---------------- */
+$("btnLoad").onclick = () => $("file").click();
+$("file").onchange = (e) => { const f = e.target.files[0]; e.target.value = ""; loadFile(f); };
+$("btnStudy").onclick = () => { go("study"); showNext(); };
+$("btnBack").onclick = $("btnBack2").onclick = () => go("home");
+$("btnSend").onclick = $("btnSend2").onclick = sendResults;
+$("btnUndo").onclick = undo;
+$("btnCopy").onclick = copyResults;
+$("show").onclick = showAnswer;
+document.querySelectorAll("#ease button").forEach((b) => (b.onclick = () => answer(+b.dataset.e)));
+$("night").onchange = () => {
+  try { localStorage.setItem("night", $("night").checked ? "1" : "0"); } catch (e) {}
+  if (current) renderCard(byId.get(current.cid), current.answerShown ? "a" : "q");
+};
+document.addEventListener("keydown", (e) => {   // por si usas teclado
+  if (!$("study").classList.contains("on")) return;
+  if (e.key === " " || e.key === "Enter") { e.preventDefault(); current && !current.answerShown ? showAnswer() : answer(3); }
+  else if ("1234".includes(e.key) && e.key.length === 1) answer(+e.key);
+  else if (e.key === "z" || e.key === "u") undo();
+});
+// el aprendizaje que vence mientras estás en la pantalla final
+setInterval(() => { if ($("finished").classList.contains("on") && pickNext()) showNext(); }, 15000);
+
+/* ---------------- arranque ---------------- */
+(async function start() {
+  try { $("night").checked = localStorage.getItem("night") === "1"; } catch (e) {}
+  try {
+    await DB.open();
+    bundle = await DB.get("bundle"); S = await DB.get("session");
+    if (bundle && S) byId = new Map(bundle.cards.map((c) => [c.cid, c]));
+    else { bundle = null; S = null; }
+  } catch (e) { await tell("Este navegador no permite guardar datos (" + e + "). Usa Safari y añade la app a la pantalla de inicio."); }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  refreshHome();
+
+  const st = $("offline");
+  if ("serviceWorker" in navigator) {
+    try {
+      await navigator.serviceWorker.register("./sw.js");
+      await navigator.serviceWorker.ready;
+      st.textContent = "Lista para usar sin internet"; st.className = "status ok";
+    } catch (e) { st.textContent = "No se pudo activar el modo sin internet: " + e.message; st.className = "status warn"; }
+  } else { st.textContent = "Este navegador no permite el modo sin internet. Usa Safari."; st.className = "status warn"; }
+  const standalone = window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+  if (!standalone && /iPhone|iPad/.test(navigator.userAgent)) {
+    st.textContent += " · Para instalarla: botón Compartir → «Añadir a pantalla de inicio».";
+  }
+})();
+</script>
+</body>
+</html>
